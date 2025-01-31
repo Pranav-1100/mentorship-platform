@@ -1,0 +1,14 @@
+# https://github.com/iamawatermelo/wakapi-anyide v0.6.8
+
+[meta]
+version = 1
+watchers = ["files"]
+
+[files]
+include = ["*"]
+exclude = []
+exclude_files = [".gitignore"]
+exclude_binary_files = true
+
+[project]
+name = "Frontend-mentorship"
