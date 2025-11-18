@@ -34,8 +34,9 @@ export const useChat = (connectionId) => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    // Create WebSocket connection
-    const ws = new WebSocket(`ws://localhost:3000?token=${token}`);
+    // Create WebSocket connection with environment variable
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000';
+    const ws = new WebSocket(`${wsUrl}?token=${token}`);
     wsRef.current = ws;
 
     ws.onopen = () => {

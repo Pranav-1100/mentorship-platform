@@ -36,9 +36,11 @@ export const handleConnectionRequest = async (connectionId, status) => {
   }
 };
 
-export const getApplications = async () => {
+export const getApplications = async (role) => {
   try {
-    const response = await axios.get('/connections/applications');
+    const response = await axios.get('/applications', {
+      params: role ? { role } : {}
+    });
     return response.data;
   } catch (error) {
     if (error.response?.data?.message) {
