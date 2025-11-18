@@ -1,121 +1,106 @@
 "use client";
 
-import React, { useState } from 'react';
-import { 
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
   User,
   Bell,
-  Clock,
-  Shield,
-  CreditCard,
-  Mail,
-  Globe,
   Save,
   Camera,
+  Loader2,
+  CheckCircle,
+  Mail,
+  Briefcase,
+  MapPin,
+  Globe,
   AlertCircle
 } from 'lucide-react';
+import { getProfile, updateProfile } from '@/lib/api/profile';
+import toast from 'react-hot-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    notifications: {
-      email: true,
-      push: true,
-      sms: false,
-      messageNotifications: true,
-      sessionReminders: true,
-      marketingEmails: false
-    },
-    availability: {
-      timezone: 'America/New_York',
-      weekdayAvailability: true,
-      weekendAvailability: false,
-      preferredTimes: ['morning', 'evening']
-    },
-    privacy: {
-      profileVisibility: 'public',
-      showEmail: false,
-      showPhone: false
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('profile');
+  const [formData, setFormData] = useState(null);
+
+  // Fetch profile data
+  const { data: profile, isLoading, error } = useQuery({
+    queryKey: ['profile'],
+    queryFn: getProfile,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Initialize form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        name: profile.name || '',
+        email: user?.email || '',
+        bio: profile.bio || '',
+        title: profile.title || '',
+        company: profile.company || '',
+        location: profile.location || '',
+        website: profile.website || '',
+        linkedIn: profile.linkedIn || '',
+        github: profile.github || '',
+        hourlyRate: profile.hourlyRate || '',
+        availability: profile.availability || 'available',
+      });
     }
+  }, [profile, user]);
+
+  // Update profile mutation
+  const updateMutation = useMutation({
+    mutationFn: updateProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['profile']);
+      toast.success('Settings updated successfully!');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update settings');
+    },
   });
 
-  const [profile, setProfile] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 234 567 8900',
-    bio: 'Senior Software Engineer with 10+ years of experience',
-    title: 'Senior Software Engineer',
-    company: 'Tech Corp',
-    website: 'https://johndoe.dev',
-    avatar: null
-  });
-
-  const [loading, setLoading] = useState(false);
-  const [notification, setNotification] = useState(null);
-
-  const handleNotificationChange = (key) => {
-    setSettings(prev => ({
-      ...prev,
-      notifications: {
-        ...prev.notifications,
-        [key]: !prev.notifications[key]
-      }
-    }));
-  };
-
-  const handleProfileUpdate = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      // Simulated API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setNotification({
-        type: 'success',
-        message: 'Profile updated successfully'
-      });
-    } catch (error) {
-      setNotification({
-        type: 'error',
-        message: 'Failed to update profile'
-      });
-    } finally {
-      setLoading(false);
-    }
+    if (!formData) return;
+
+    updateMutation.mutate(formData);
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile(prev => ({ ...prev, avatar: reader.result }));
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Add availability settings handling
-  const handleAvailabilityChange = (key) => {
-    setSettings(prev => ({
-      ...prev,
-      availability: {
-        ...prev.availability,
-        [key]: !prev.availability[key]
-      }
-    }));
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const timeZones = [
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'Europe/London',
-    'Asia/Tokyo',
-    'Australia/Sydney'
-  ];
+  if (error) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] bg-gray-50 flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
+          <p className="text-red-700 text-center">{error.message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!formData) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-6">
+    <div className="min-h-[calc(100vh-4rem)] bg-gray-50">
+      <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -123,351 +108,314 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        {/* Success/Error Notification */}
-        {notification && (
-          <div className={`mb-6 p-4 rounded-md ${
-            notification.type === 'success' ? 'bg-green-50' : 'bg-red-50'
-          }`}>
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <AlertCircle className={`h-5 w-5 ${
-                  notification.type === 'success' ? 'text-green-400' : 'text-red-400'
-                }`} />
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="flex -mb-px space-x-8">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`pb-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'profile'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <User size={18} />
+                <span>Profile</span>
               </div>
-              <div className="ml-3">
-                <p className={`text-sm font-medium ${
-                  notification.type === 'success' ? 'text-green-800' : 'text-red-800'
-                }`}>
-                  {notification.message}
-                </p>
+            </button>
+            <button
+              onClick={() => setActiveTab('account')}
+              className={`pb-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'account'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <Mail size={18} />
+                <span>Account</span>
               </div>
-            </div>
-          </div>
-        )}
+            </button>
+          </nav>
+        </div>
 
-        {/* Settings Grid */}
-        <div className="grid grid-cols-1 gap-6">
-          {/* Profile Settings */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Profile Settings</h2>
-              <form onSubmit={handleProfileUpdate}>
-                <div className="grid grid-cols-1 gap-6">
-                  {/* Profile Picture */}
-                  <div className="col-span-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Profile Picture
-                    </label>
-                    <div className="mt-2 flex items-center space-x-4">
-                      <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center relative group overflow-hidden">
-                        {profile.avatar ? (
-                          <img
-                            src={profile.avatar}
-                            alt={profile.name}
-                            className="h-16 w-16 object-cover"
-                          />
-                        ) : (
-                          <User className="h-8 w-8 text-gray-400" />
-                        )}
-                        <label className="absolute inset-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                          <Camera className="h-6 w-6 text-white" />
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                          />
-                        </label>
-                      </div>
-                      {profile.avatar && (
-                        <button
-                          type="button"
-                          onClick={() => setProfile(prev => ({ ...prev, avatar: null }))}
-                          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Basic Info */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        value={profile.name}
-                        onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Job Title
-                      </label>
-                      <input
-                        type="text"
-                        value={profile.title}
-                        onChange={(e) => setProfile(prev => ({ ...prev, title: e.target.value }))}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        value={profile.email}
-                        onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        value={profile.phone}
-                        onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Company
-                      </label>
-                      <input
-                        type="text"
-                        value={profile.company}
-                        onChange={(e) => setProfile(prev => ({ ...prev, company: e.target.value }))}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Website
-                      </label>
-                      <input
-                        type="url"
-                        value={profile.website}
-                        onChange={(e) => setProfile(prev => ({ ...prev, website: e.target.value }))}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Bio */}
+        {/* Settings Form */}
+        <form onSubmit={handleSubmit}>
+          {activeTab === 'profile' && (
+            <div className="space-y-6">
+              {/* Basic Information Card */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Bio
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Full Name
                     </label>
-                    <textarea
-                      rows={4}
-                      value={profile.bio}
-                      onChange={(e) => setProfile(prev => ({ ...prev, bio: e.target.value }))}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Tell us about yourself..."
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => handleChange('name', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Your full name"
                     />
                   </div>
 
-                  {/* Save Button */}
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Bio
+                    </label>
+                    <textarea
+                      value={formData.bio}
+                      onChange={(e) => handleChange('bio', e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Tell others about yourself..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Professional Information Card */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Professional Information</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Job Title
+                    </label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.title}
+                        onChange={(e) => handleChange('title', e.target.value)}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., Senior Software Engineer"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Company
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.company}
+                      onChange={(e) => handleChange('company', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Your company name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Location
+                    </label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.location}
+                        onChange={(e) => handleChange('location', e.target.value)}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="City, Country"
+                      />
+                    </div>
+                  </div>
+
+                  {(user?.role === 'mentor' || user?.role === 'both') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Hourly Rate (USD)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                        <input
+                          type="number"
+                          value={formData.hourlyRate}
+                          onChange={(e) => handleChange('hourlyRate', e.target.value)}
+                          className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0"
+                          min="0"
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Leave blank if you offer free mentorship
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Social Links Card */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Social Links</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Website
+                    </label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                      <input
+                        type="url"
+                        value={formData.website}
+                        onChange={(e) => handleChange('website', e.target.value)}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="https://yourwebsite.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      LinkedIn Profile
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.linkedIn}
+                      onChange={(e) => handleChange('linkedIn', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="https://linkedin.com/in/username"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      GitHub Profile
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.github}
+                      onChange={(e) => handleChange('github', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="https://github.com/username"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Availability Card (for mentors) */}
+              {(user?.role === 'mentor' || user?.role === 'both') && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Availability Status</h2>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Current Status
+                    </label>
+                    <select
+                      value={formData.availability}
+                      onChange={(e) => handleChange('availability', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      {loading ? (
-                        <span className="inline-flex items-center">
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Saving...
-                        </span>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Save Changes
-                        </>
-                      )}
-                    </button>
+                      <option value="available">Available for new mentees</option>
+                      <option value="limited">Limited availability</option>
+                      <option value="unavailable">Not accepting new mentees</option>
+                    </select>
+                    <p className="mt-2 text-sm text-gray-500">
+                      This will be displayed on your profile to potential mentees
+                    </p>
                   </div>
                 </div>
-              </form>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Notification Settings */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Notification Settings</h2>
-              <div className="space-y-4">
-                {/* Email Notifications */}
-                <div className="flex items-center justify-between">
+          {activeTab === 'account' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h2>
+                <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-900">Email Notifications</h3>
-                    <p className="text-sm text-gray-500">Receive email updates about your mentorship activities</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={user?.email || ''}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                    />
                   </div>
-                  <button
-                    onClick={() => handleNotificationChange('email')}
-                    className={`${
-                      settings.notifications.email ? 'bg-blue-600' : 'bg-gray-200'
-                    } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                  >
-                    <span className={`${
-                      settings.notifications.email ? 'translate-x-5' : 'translate-x-0'
-                    } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`} />
-                  </button>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Role
+                    </label>
+                    <input
+                      type="text"
+                      value={user?.role === 'both' ? 'Mentor & Mentee' : user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) || ''}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Member Since
+                    </label>
+                    <input
+                      type="text"
+                      value={profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                    />
+                  </div>
                 </div>
+              </div>
 
-                {/* Push Notifications */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">Push Notifications</h3>
-                    <p className="text-sm text-gray-500">Receive push notifications for important updates</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex">
+                  <Bell className="h-5 w-5 text-blue-400 mt-0.5" />
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">
+                      Password & Security
+                    </h3>
+                    <p className="mt-1 text-sm text-blue-700">
+                      Password management and two-factor authentication settings will be available soon.
+                    </p>
                   </div>
-                  <button
-                    onClick={() => handleNotificationChange('push')}
-                    className={`${
-                      settings.notifications.push ? 'bg-blue-600' : 'bg-gray-200'
-                    } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                  >
-                    <span className={`${
-                      settings.notifications.push ? 'translate-x-5' : 'translate-x-0'
-                    } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`} />
-                  </button>
-                </div>
-
-                {/* Session Reminders */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">Session Reminders</h3>
-                    <p className="text-sm text-gray-500">Get reminded about upcoming mentorship sessions</p>
-                  </div>
-                  <button
-                    onClick={() => handleNotificationChange('sessionReminders')}
-                    className={`${
-                      settings.notifications.sessionReminders ? 'bg-blue-600' : 'bg-gray-200'
-                    } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                  >
-                    <span className={`${
-                      settings.notifications.sessionReminders ? 'translate-x-5' : 'translate-x-0'
-                    } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`} />
-                  </button>
-                </div>
-
-                {/* Marketing Emails */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">Marketing Emails</h3>
-                    <p className="text-sm text-gray-500">Receive emails about new features and promotions</p>
-                  </div>
-                  <button
-                    onClick={() => handleNotificationChange('marketingEmails')}
-                    className={`${
-                      settings.notifications.marketingEmails ? 'bg-blue-600' : 'bg-gray-200'
-                    } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                  >
-                    <span className={`${
-                      settings.notifications.marketingEmails ? 'translate-x-5' : 'translate-x-0'
-                    } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`} />
-                  </button>
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Save Button */}
+          <div className="flex justify-end mt-6">
+            <button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {updateMutation.isPending ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </button>
           </div>
-
-          {/* Privacy Settings */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Privacy Settings</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Profile Visibility</label>
-                  <select
-                    value={settings.privacy.profileVisibility}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      privacy: { ...prev.privacy, profileVisibility: e.target.value }
-                    }))}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
-                  >
-                    <option value="public">Public - Visible to everyone</option>
-                    <option value="connections">Connections Only - Only visible to your connections</option>
-                    <option value="private">Private - Only visible to you</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">Show Email Address</h3>
-                    <p className="text-sm text-gray-500">Make your email visible to other users</p>
-                  </div>
-                  <button
-                    onClick={() => setSettings(prev => ({
-                      ...prev,
-                      privacy: { ...prev.privacy, showEmail: !prev.privacy.showEmail }
-                    }))}
-                    className={`${
-                      settings.privacy.showEmail ? 'bg-blue-600' : 'bg-gray-200'
-                    } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                  >
-                    <span className={`${
-                      settings.privacy.showEmail ? 'translate-x-5' : 'translate-x-0'
-                    } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">Show Phone Number</h3>
-                    <p className="text-sm text-gray-500">Make your phone number visible to other users</p>
-                  </div>
-                  <button
-                    onClick={() => setSettings(prev => ({
-                      ...prev,
-                      privacy: { ...prev.privacy, showPhone: !prev.privacy.showPhone }
-                    }))}
-                    className={`${
-                      settings.privacy.showPhone ? 'bg-blue-600' : 'bg-gray-200'
-                    } relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                  >
-                    <span className={`${
-                      settings.privacy.showPhone ? 'translate-x-5' : 'translate-x-0'
-                    } pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200`} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Account Deletion */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Delete Account</h2>
-              <p className="text-sm text-gray-500 mb-4">
-                Once you delete your account, there is no going back. Please be certain.
-              </p>
-              <button
-                type="button"
-                className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                Delete Account
-              </button>
-            </div>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
   );
