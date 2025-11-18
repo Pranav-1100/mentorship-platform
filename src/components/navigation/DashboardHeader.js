@@ -18,7 +18,8 @@ import {
   Clock,
   Search,
   Briefcase,
-  GraduationCap
+  GraduationCap,
+  Star
 } from 'lucide-react';
 
 export default function DashboardHeader() {
@@ -32,6 +33,7 @@ export default function DashboardHeader() {
       { name: 'Home', href: '/dashboard', icon: Home },
       { name: 'Messages', href: '/dashboard/chats', icon: MessageSquare },
       { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar },
+      { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
     ];
 
     if (user?.role === 'mentee' || user?.role === 'both') {
